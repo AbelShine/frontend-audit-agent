@@ -1,0 +1,10 @@
+node_modules/
+output/*
+!output/.gitkeep
+.auth/*
+!.auth/.gitkeep
+config/projects.local.json
+state/findings.json
+!state/.gitkeep
+.DS_Store
+*.log

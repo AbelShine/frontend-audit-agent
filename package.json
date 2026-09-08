@@ -1,0 +1,21 @@
+{
+  "name": "frontend-audit-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "面向 JeecgBoot、Vue移动端和数据大屏的可复用前端交付巡检工具",
+  "scripts": {
+    "start": "node src/run-with-tests.mjs",
+    "check": "node src/run-with-tests.mjs",
+    "scan": "node src/cli.mjs scan all",
+    "audit": "node src/cli.mjs audit",
+    "auth": "node src/cli.mjs auth",
+    "interact": "node src/cli.mjs interact",
+    "decide": "node src/cli.mjs decide",
+    "history": "node src/cli.mjs history all",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}

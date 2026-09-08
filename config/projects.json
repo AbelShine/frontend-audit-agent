@@ -1,0 +1,41 @@
+{
+  "admin": {
+    "name": "JeecgBoot后台示例",
+    "type": "jeecg-admin",
+    "root": "../admin-project",
+    "startCommand": "npm run dev -- --port 3102",
+    "url": "http://127.0.0.1:3102/",
+    "routes": ["/"],
+    "viewports": [
+      { "name": "desktop-1366", "width": 1366, "height": 768 },
+      { "name": "desktop-1920", "width": 1920, "height": 1080 }
+    ]
+  },
+  "mobile": {
+    "name": "Vue移动端示例",
+    "type": "mobile-vue",
+    "root": "../mobile-project",
+    "startCommand": "npm run dev -- --port 3101",
+    "url": "http://127.0.0.1:3101/",
+    "routes": ["/"],
+    "viewports": [
+      { "name": "iphone-se", "width": 375, "height": 667 },
+      { "name": "iphone-14", "width": 390, "height": 844 },
+      { "name": "wide-mobile", "width": 430, "height": 932 }
+    ]
+  },
+  "screen": {
+    "name": "ECharts大屏示例",
+    "type": "data-screen",
+    "root": "../screen-project",
+    "startCommand": "npm run dev -- --port 5173",
+    "url": "http://127.0.0.1:5173/",
+    "routes": ["/screen"],
+    "settleMs": 5000,
+    "viewports": [
+      { "name": "screen-1366", "width": 1366, "height": 768 },
+      { "name": "screen-1920", "width": 1920, "height": 1080 },
+      { "name": "screen-2560", "width": 2560, "height": 1440 }
+    ]
+  }
+}

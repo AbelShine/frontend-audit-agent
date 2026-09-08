@@ -1,0 +1,16 @@
+{
+  "modalMinWidthByButtonCount": {
+    "1": 320,
+    "2": 400,
+    "3": 520,
+    "4": 640
+  },
+  "operationColors": {
+    "view": "#1677ff",
+    "edit": "#fa8c16",
+    "approve": "#52c41a",
+    "reject": "#fa541c",
+    "delete": "#ff4d4f",
+    "cancel": "#8c8c8c"
+  }
+}
