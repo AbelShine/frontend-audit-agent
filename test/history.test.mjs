@@ -33,3 +33,19 @@ test('已确认问题被隐藏，消失后解决，再出现时标记回归', as
   assert.equal(summary.counts.open, 1);
   await fs.rm(dir, { recursive: true });
 });
+
+test('变更扫描不会把未覆盖的历史问题标记为已解决', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'frontend-audit-changed-history-'));
+  const stateFile = path.join(dir, 'findings.json');
+  const finding = {
+    project: 'admin', file: 'src/old.vue', line: 1, contextHash: 'old-code',
+    ruleId: 'DEMO_RULE', severity: 'P2', title: '历史问题', message: '演示', evidence: 'demo',
+  };
+  const options = { stateFile, projects: ['admin'], scopes: ['static'], scopeForFinding: () => 'static' };
+  await reconcileFindings([finding], options);
+  const changed = await reconcileFindings([], { ...options, resolveMissing: false });
+  assert.equal(changed.newlyResolved, 0);
+  const summary = await historySummary(stateFile, 'admin');
+  assert.equal(summary.counts.open, 1);
+  await fs.rm(dir, { recursive: true });
+});

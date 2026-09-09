@@ -17,7 +17,9 @@ if (!await exists(path.join(testAgentRoot, 'src/cli.mjs'))) {
 }
 
 const localProjects = path.join(root, 'config/projects.local.json');
-const projectsFile = await exists(localProjects) ? localProjects : path.join(root, 'config/projects.json');
+const projectsFile = process.env.FRONTEND_AUDIT_PROJECTS_FILE
+  ? path.resolve(process.env.FRONTEND_AUDIT_PROJECTS_FILE)
+  : await exists(localProjects) ? localProjects : path.join(root, 'config/projects.json');
 console.log(`检测到 frontend-test-agent，开始联动测试 ${selector}...`);
 const testCode = await run(process.execPath, [path.join(testAgentRoot, 'src/cli.mjs'), 'test', selector, ...flags], testAgentRoot, {
   FRONTEND_TEST_PROJECTS_FILE: projectsFile,

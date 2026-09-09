@@ -1,4 +1,15 @@
 {
+  "demo": {
+    "name": "内置Agent演示项目",
+    "type": "jeecg-admin",
+    "root": "./demo-project",
+    "startCommand": "node server.mjs",
+    "url": "http://127.0.0.1:4178/",
+    "routes": ["/"],
+    "viewports": [
+      { "name": "demo-desktop", "width": 1280, "height": 800 }
+    ]
+  },
   "admin": {
     "name": "JeecgBoot后台示例",
     "type": "jeecg-admin",

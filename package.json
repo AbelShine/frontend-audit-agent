@@ -5,9 +5,11 @@
   "type": "module",
   "description": "面向 JeecgBoot、Vue移动端和数据大屏的可复用前端交付巡检工具",
   "scripts": {
-    "start": "node src/run-with-tests.mjs",
+    "start": "node src/run-demo.mjs",
     "check": "node src/run-with-tests.mjs",
     "scan": "node src/cli.mjs scan all",
+    "scan:changed": "node src/cli.mjs scan-changed",
+    "doctor": "node src/cli.mjs doctor",
     "audit": "node src/cli.mjs audit",
     "auth": "node src/cli.mjs auth",
     "interact": "node src/cli.mjs interact",

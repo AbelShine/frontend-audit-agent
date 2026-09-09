@@ -44,12 +44,14 @@ export async function reconcileFindings(findings, options) {
   }
 
   let newlyResolved = 0;
-  for (const [fingerprint, record] of Object.entries(state.records)) {
-    if (!options.projects.includes(record.project) || !options.scopes.includes(record.scope) || current.has(fingerprint)) continue;
-    if (record.status === 'open') {
-      record.status = 'resolved';
-      record.resolvedAt = now;
-      newlyResolved += 1;
+  if (options.resolveMissing !== false) {
+    for (const [fingerprint, record] of Object.entries(state.records)) {
+      if (!options.projects.includes(record.project) || !options.scopes.includes(record.scope) || current.has(fingerprint)) continue;
+      if (record.status === 'open') {
+        record.status = 'resolved';
+        record.resolvedAt = now;
+        newlyResolved += 1;
+      }
     }
   }
 

@@ -3,10 +3,15 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 
 export async function captureAuth(projectKey, project, authDir) {
-  const browser = await chromium.launch({ headless: false });
+  const browser = await launchChromium(false);
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto(project.url, { waitUntil: 'domcontentloaded' });
+  try {
+    await page.goto(project.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  } catch (error) {
+    await browser.close();
+    throw new Error(`无法访问${project.url}。请先启动业务项目并确认config/projects.local.json中的url正确。原始错误：${error.message}`);
+  }
   process.stdout.write(`\n请在打开的浏览器中登录 ${project.name}，登录完成后回到终端按 Enter。\n`);
   await waitForEnter();
   const state = await context.storageState();
@@ -22,7 +27,7 @@ export async function captureAuth(projectKey, project, authDir) {
 export async function auditRuntime(projectKey, project, outputDir, { headed = false } = {}) {
   const authPath = path.resolve(outputDir, '..', '..', '.auth', `${projectKey}.json`);
   const hasAuth = await hasUsefulAuth(authPath);
-  const browser = await chromium.launch({ headless: !headed });
+  const browser = await launchChromium(!headed);
   const context = await browser.newContext(hasAuth ? { storageState: authPath } : {});
   const findings = [];
   const artifacts = [];
@@ -34,6 +39,7 @@ export async function auditRuntime(projectKey, project, outputDir, { headed = fa
     const httpErrors = [];
     const requestTimes = new Map();
     const responseStatuses = new Map();
+    let loginDetected = false;
 
     page.on('console', (message) => {
       if (message.type() === 'error') consoleErrors.push(message.text());
@@ -68,6 +74,14 @@ export async function auditRuntime(projectKey, project, outputDir, { headed = fa
         findings.push(runtimeFinding(projectKey, viewport.name, 'P1', 'PAGE_LOAD_FAILED', '页面加载失败', error.message, targetUrl));
       }
 
+      const loginPage = await inspectLoginPage(page).catch(() => false);
+      if (loginPage) {
+        loginDetected = true;
+        const finding = runtimeFinding(projectKey, viewport.name, 'P1', 'AUTH_REQUIRED', '巡检停留在登录页', `当前页面${page.url()}需要登录，无法继续验证登录后的业务功能。`, targetUrl);
+        finding.suggestion = `先启动项目，再执行 pnpm run auth -- ${projectKey} 保存登录状态，然后重新运行巡检。`;
+        findings.push(finding);
+      }
+
       const dom = await inspectDom(page).catch(() => ({ overflow: [], occluded: [], brokenCharts: [] }));
       dom.overflow.slice(0, 12).forEach((item) => findings.push(runtimeFinding(projectKey, viewport.name, 'P2', 'HORIZONTAL_OVERFLOW', '元素横向溢出', item, targetUrl)));
       dom.occluded.slice(0, 12).forEach((item) => findings.push(runtimeFinding(projectKey, viewport.name, 'P1', 'CLICK_TARGET_OCCLUDED', '按钮或输入框被遮挡', item, targetUrl)));
@@ -85,7 +99,7 @@ export async function auditRuntime(projectKey, project, outputDir, { headed = fa
     }
 
     const authRequired = httpErrors.some((message) => message.startsWith('401 '));
-    if (authRequired) {
+    if (authRequired && !loginDetected) {
       findings.push(runtimeFinding(projectKey, viewport.name, 'P1', 'AUTH_REQUIRED', '运行态巡检缺少登录状态', '接口返回401；保存登录状态后才能判断页面真实问题。', project.url));
     }
     unique(consoleErrors)
@@ -108,6 +122,23 @@ export async function auditRuntime(projectKey, project, outputDir, { headed = fa
   }
   await browser.close();
   return { findings, artifacts };
+}
+
+async function launchChromium(headless) {
+  try {
+    return await chromium.launch({ headless });
+  } catch (error) {
+    throw new Error(`无法启动Playwright Chromium。请执行 pnpm exec playwright install chromium。原始错误：${error.message}`);
+  }
+}
+
+async function inspectLoginPage(page) {
+  const pathname = new URL(page.url()).pathname.toLowerCase();
+  if (/(^|\/)(login|signin|sso)(\/|$)/.test(pathname)) return true;
+  const passwordInputs = await page.locator('input[type="password"]:visible').count();
+  if (passwordInputs > 0) return true;
+  const text = await page.locator('body').innerText({ timeout: 2000 }).catch(() => '');
+  return /(登录|sign\s*in)/i.test(text) && /(密码|password|验证码|captcha)/i.test(text);
 }
 
 async function inspectDom(page) {

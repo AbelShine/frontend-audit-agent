@@ -8,6 +8,8 @@ import { auditInteractive } from './runtime/interactive-audit.mjs';
 import { writeReport } from './report/html.mjs';
 import { historySummary, reconcileFindings, updateDecision } from './history.mjs';
 import { nowSlug } from './utils.mjs';
+import { changedSourceFiles } from './utils.mjs';
+import { diagnose, printDiagnosis } from './doctor.mjs';
 
 const [command = 'scan', selector = 'all', ...flags] = process.argv.slice(2);
 const projects = await loadProjects();
@@ -29,6 +31,12 @@ if (command === 'history') {
 }
 
 const selected = selectProjects(projects, selector);
+
+if (command === 'doctor') {
+  const failures = printDiagnosis(await diagnose(selected, { root }));
+  process.exitCode = failures ? 1 : 0;
+  process.exit();
+}
 
 if (command === 'auth') {
   if (selected.length !== 1) throw new Error('auth命令必须指定一个项目：admin、mobile或screen');
@@ -64,7 +72,9 @@ const artifacts = [];
 
 for (const [key, project] of selected) {
   console.log(`扫描 ${project.name}...`);
-  findings.push(...await scanProject(key, project));
+  const changedFiles = command === 'scan-changed' ? await changedSourceFiles(project.root) : undefined;
+  if (changedFiles) console.log(`仅检查Git变更：${changedFiles.length}个源码文件`);
+  findings.push(...await scanProject(key, project, { files: changedFiles }));
   if (command === 'audit') {
     const runtime = await auditRuntime(key, project, outputDir, { headed: flags.includes('--headed') });
     findings.push(...runtime.findings);
@@ -82,6 +92,7 @@ const reportFile = await writeReport(outputDir, {
       projects: selected.map(([key]) => key),
       scopes: command === 'audit' ? ['static', 'runtime-audit'] : ['static'],
       scopeForFinding: (finding) => finding.file ? 'static' : 'runtime-audit',
+      resolveMissing: command !== 'scan-changed',
     });
     return { findings: tracked.active, suppressed: tracked.suppressed, newlyResolved: tracked.newlyResolved };
   })(),

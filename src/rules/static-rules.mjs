@@ -4,8 +4,8 @@ import { lineOf, relative, sourceFiles } from '../utils.mjs';
 
 const severityOrder = { P0: 0, P1: 1, P2: 2, P3: 3 };
 
-export async function scanProject(projectKey, project) {
-  const files = await sourceFiles(project.root);
+export async function scanProject(projectKey, project, options = {}) {
+  const files = options.files || await sourceFiles(project.root);
   const findings = [];
   for (const file of files) {
     const content = await fs.readFile(file, 'utf8');

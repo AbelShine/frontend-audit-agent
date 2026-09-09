@@ -76,6 +76,22 @@ UniApp 只有一个外部接口地址，不通过 `baseURL` 区分本地、测�
 
 ## 4. 日常使用流程
 
+### 没有业务需求：先运行内置演示
+
+```bash
+npm start
+```
+
+该命令自动启动本仓库的演示页面，执行Audit，并在同级存在Test Agent时完成查询、弹窗、安全模拟提交、请求次数和列表刷新验证。它不使用业务账号和接口。
+
+### 开始前：环境诊断
+
+```bash
+npm run doctor -- admin
+```
+
+诊断会检查业务目录、页面服务、Playwright Chromium、登录状态以及Test Agent联动。
+
 ### 第一步：静态扫描
 
 ```bash
@@ -88,6 +104,12 @@ npm run scan
 node src/cli.mjs scan admin
 node src/cli.mjs scan mobile
 node src/cli.mjs scan screen
+```
+
+只扫描尚未提交的Git改动：
+
+```bash
+npm run scan:changed -- admin
 ```
 
 ### 第二步：启动被测项目

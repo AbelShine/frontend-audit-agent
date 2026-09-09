@@ -12,6 +12,8 @@
 
 工具只读取业务项目，不修改它们。检查结果和浏览器登录状态保存在本工具目录。
 
+没有真实业务项目或待办需求时，安装依赖后直接运行`npm start`。工具会自动启动内置演示项目，并在同级存在Test Agent时联动完成一套操作型验证，不需要登录或连接真实接口。
+
 ## 项目价值
 
 - **规则可复用**：把路由白屏、表格选择、字典回显、重复提示、请求竞态和图表更新等团队经验沉淀成固定规则。
@@ -95,6 +97,24 @@ node src/cli.mjs scan mobile
 node src/cli.mjs scan screen
 ```
 
+只检查业务项目当前尚未提交的Git改动：
+
+```bash
+npm run scan:changed -- admin
+```
+
+变更扫描不会把未扫描到的历史问题标记为已解决。
+
+## 环境诊断
+
+运行态检查前可以一次确认项目路径、页面地址、Chromium、登录状态和Test Agent联动：
+
+```bash
+npm run doctor -- admin
+```
+
+`FAIL`必须处理；登录状态和Test Agent显示`INFO`时不影响纯静态扫描。
+
 ## 保存测试登录状态
 
 业务页面需要登录时，执行：
@@ -130,6 +150,14 @@ npm run audit -- mobile
 ```bash
 npm start -- admin
 ```
+
+没有业务需求时执行：
+
+```bash
+npm start
+```
+
+该命令运行内置演示，不读取个人项目配置；可用于验证安装是否完整以及向新同事展示完整流程。
 
 该命令会先运行Audit页面巡检，再自动调用Test项目执行同一项目的测试。找不到Test项目时只运行Audit并正常结束。也可以用环境变量`FRONTEND_TEST_AGENT_DIR`指定Test项目目录。
 

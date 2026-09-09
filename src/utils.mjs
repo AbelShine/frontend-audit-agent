@@ -1,12 +1,50 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const SOURCE_EXTENSIONS = new Set(['.vue', '.ts', '.tsx', '.js', '.jsx']);
+const execFileAsync = promisify(execFile);
 
 export async function sourceFiles(root) {
   const result = [];
   await walk(path.join(root, 'src'), result);
   return result;
+}
+
+export async function changedSourceFiles(root) {
+  const names = new Set();
+  try {
+    const { stdout } = await execFileAsync('git', ['diff', '--name-only', '-z', '--diff-filter=ACMR', 'HEAD', '--'], {
+      cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024,
+    });
+    splitNull(stdout).forEach((name) => names.add(name));
+  } catch (error) {
+    if (error.code === 'ENOENT') throw new Error('找不到Git命令，无法执行变更扫描。');
+    try {
+      const { stdout } = await execFileAsync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' });
+      splitNull(stdout).forEach((name) => names.add(name));
+    } catch {
+      throw new Error(`业务项目不是Git仓库或无法读取Git状态：${root}`);
+    }
+  }
+  const { stdout: untracked = '' } = await execFileAsync('git', ['ls-files', '--others', '--exclude-standard', '-z'], {
+    cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024,
+  });
+  splitNull(untracked).forEach((name) => names.add(name));
+
+  const files = [];
+  for (const name of names) {
+    const normalized = name.replaceAll('\\', '/');
+    if (!normalized.startsWith('src/') || !SOURCE_EXTENSIONS.has(path.extname(normalized))) continue;
+    const file = path.resolve(root, normalized);
+    try { await fs.access(file); files.push(file); } catch { /* Deleted files do not need source scanning. */ }
+  }
+  return files;
+}
+
+function splitNull(value) {
+  return String(value || '').split('\0').filter(Boolean);
 }
 
 async function walk(directory, result) {

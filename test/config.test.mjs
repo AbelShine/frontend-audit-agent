@@ -8,8 +8,13 @@ import { loadProjects, projectRoot } from '../src/config.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('项目配置中的相对路径会基于工具目录解析', async () => {
+  const previous = process.env.FRONTEND_AUDIT_PROJECTS_FILE;
+  process.env.FRONTEND_AUDIT_PROJECTS_FILE = path.join(root, 'config/projects.json');
   const projects = await loadProjects();
+  if (previous === undefined) delete process.env.FRONTEND_AUDIT_PROJECTS_FILE;
+  else process.env.FRONTEND_AUDIT_PROJECTS_FILE = previous;
   assert.equal(projectRoot(), root);
+  assert.equal(projects.demo.root, path.resolve(root, 'demo-project'));
   assert.equal(projects.admin.root, path.resolve(root, '../admin-project'));
   assert.equal(projects.mobile.root, path.resolve(root, '../mobile-project'));
   assert.equal(projects.screen.root, path.resolve(root, '../screen-project'));
