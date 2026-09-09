@@ -133,6 +133,30 @@ npm start -- admin
 
 该命令会先运行Audit页面巡检，再自动调用Test项目执行同一项目的测试。找不到Test项目时只运行Audit并正常结束。也可以用环境变量`FRONTEND_TEST_AGENT_DIR`指定Test项目目录。
 
+### Windows一键启动工作区
+
+先在`config/projects.local.json`中配置真实业务项目的`root`、`url`和`startCommand`，然后在PowerShell运行：
+
+```powershell
+# 启动admin业务项目，等待页面可访问，再运行Audit并联动Test
+.\start-workspace.ps1 admin
+
+# 只启动业务项目，不执行巡检
+.\start-workspace.ps1 admin -SkipAudit
+
+# 显示巡检浏览器
+.\start-workspace.ps1 admin -Headed
+```
+
+如果业务地址已经可以访问，脚本会复用现有进程，不会重复启动。业务项目会在独立PowerShell窗口中持续运行；Audit完成后该窗口不会被关闭。
+
+如果Windows禁止执行本地脚本，可以只为当前终端放开：
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\start-workspace.ps1 admin
+```
+
 ## 安全交互巡检
 
 先保存登录状态，然后运行：

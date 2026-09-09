@@ -94,6 +94,18 @@ node src/cli.mjs scan screen
 
 在业务项目目录运行其开发命令，并确认 `config/projects.json` 中的 `url` 能够正常访问。
 
+Windows也可以在Audit目录执行一键脚本。脚本会复用已经运行的服务；未启动时根据项目配置中的`startCommand`打开独立PowerShell窗口，等待服务就绪后运行Audit，并在同级存在Test项目时继续联动测试：
+
+```powershell
+.\start-workspace.ps1 admin
+```
+
+只需要启动业务项目时执行：
+
+```powershell
+.\start-workspace.ps1 admin -SkipAudit
+```
+
 ### 第三步：保存登录状态
 
 ```bash
