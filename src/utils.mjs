@@ -67,7 +67,7 @@ export function lineOf(content, index) {
 }
 
 export function relative(root, file) {
-  return path.relative(root, file);
+  return path.relative(root, file).replaceAll('\\', '/');
 }
 
 export function nowSlug() {

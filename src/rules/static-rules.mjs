@@ -16,6 +16,7 @@ export async function scanProject(projectKey, project, options = {}) {
 }
 
 export function scanFile(context) {
+  context = { ...context, file: context.file.replaceAll('\\', '/') };
   return [
     ...jeecgBusinessRules(context),
     ...mobileFixedRules(context),
@@ -66,7 +67,7 @@ function jeecgBusinessRules(context) {
   const active = stripComments(context.content);
   const activeContext = { ...context, content: active };
 
-  if (context.file === 'src/router/helper/routeHelper.ts' && /route\.children\s*=\s*\[cloneDeep\(route\)\]/.test(active)) {
+  if (context.file.startsWith('src/router/') && /route\.children\s*=\s*\[cloneDeep\(route\)\]/.test(active)) {
     addFirst(findings, activeContext, /route\.children\s*=\s*\[cloneDeep\(route\)\]/, {
       ruleId: 'ROUTE_CHILDREN_BLANK_PAGE', severity: 'P1', title: '单页路由被再次包装为children',
       message: '架构层把已有component路由克隆到children，叠加子级校验后可能形成空路径父子路由并出现白屏。',
@@ -74,13 +75,13 @@ function jeecgBusinessRules(context) {
     });
   }
 
-  if (!context.file.startsWith('src/views/safe/')) return findings;
+  if (!isBusinessView(context.file)) return findings;
 
-  if (/<BasicTable\b/.test(active) && /(?:rowSelection|:row-selection)/i.test(active) && !/\browKey\s*(?:=|:)/.test(active)) {
+  if (/<BasicTable\b/.test(active) && /(?:rowSelection|:row-selection)/i.test(active) && !/\b(?:rowKey|row-key)\s*(?:=|:)/.test(active)) {
     addFirst(findings, activeContext, /(?:rowSelection|:row-selection)/i, {
       ruleId: 'TABLE_SELECTION_WITHOUT_ROW_KEY', severity: 'P1', title: '表格选择缺少稳定rowKey',
-      message: '表格启用了单选或多选，但没有有效rowKey；筛选、翻页或全选后选择状态可能指向错误记录。',
-      suggestion: '显式设置唯一且稳定的rowKey，并验证接口每条记录都包含该字段。',
+      message: '当前文件启用了表格选择，但未发现显式rowKey。它也可能由useTable、外部配置或框架默认值提供，需进一步核实。',
+      suggestion: '先追踪表格配置和框架默认值，再验证接口记录的key唯一性；不能仅凭此提示判断选择功能已损坏。',
     });
   }
 
@@ -111,8 +112,8 @@ function jeecgBusinessRules(context) {
   if (/await\s+[A-Za-z_$][\w$]*\([^;]*\);[\s\S]{0,420}?(?:createMessage|message)\.success\s*\(/.test(active)) {
     addFirst(findings, activeContext, /(?:createMessage|message)\.success\s*\(/, {
       ruleId: 'DUPLICATE_SUCCESS_MESSAGE', severity: 'P2', title: '业务层可能重复显示成功提示',
-      message: '项目Axios默认successMessageMode为success，接口完成后业务代码又手动提示，可能连续出现两条message。',
-      suggestion: '二选一：删除业务层提示，或在该接口请求选项中显式设置successMessageMode: none。',
+      message: '接口完成后业务代码手动提示；如果请求封装也启用了成功提示，可能出现重复message。当前规则未验证请求封装的实际默认配置。',
+      suggestion: '先检查该接口及请求封装的successMessageMode，并运行操作验证提示次数；确认重复后只保留一个提示来源。',
     });
   }
 
@@ -122,7 +123,7 @@ function jeecgBusinessRules(context) {
     suggestion: '把基础字段与对应_dictText加入接口契约测试；缺失时统一走前端字典解析，不要临时写死默认文本。',
   });
 
-  if (context.file.endsWith('.api.ts') && /params\s*:\s*Object\b/.test(active)) {
+  if (/\.(?:ts|tsx|vue)$/.test(context.file) && /params\s*:\s*Object\b/.test(active)) {
     addGrouped(findings, activeContext, /params\s*:\s*Object\b/g, {
       ruleId: 'UNTYPED_API_PARAMS', severity: 'P2', title: '接口参数使用宽泛Object类型',
       message: 'Object无法约束字段名和number/string类型，联调时的类型混淆及AI擅自补默认值无法在编译期发现。',
@@ -151,6 +152,7 @@ function mobileFixedRules(context) {
 function componentConsistencyRules(context) {
   const findings = [];
   if (!isBusinessView(context.file)) return findings;
+  const activeContext = { ...context, content: stripComments(context.content) };
   if (context.project.type === 'jeecg-admin') {
     const rules = [
       ['a-upload', 'RAW_UPLOAD_COMPONENT', 'P2', 'JUpload/JUploadButton', '鉴权、签名和统一上传交互'],
@@ -162,15 +164,15 @@ function componentConsistencyRules(context) {
     ];
     for (const [tag, ruleId, severity, preferred, capabilities] of rules) {
       const regex = new RegExp(`<${tag}\\b`, 'i');
-      if (!regex.test(context.content) || isFrameworkComponentException(context, tag)) continue;
-      addFirst(findings, context, regex, {
+      if (!regex.test(activeContext.content) || isFrameworkComponentException(context, tag)) continue;
+      addFirst(findings, activeContext, regex, {
         ruleId, severity, title: `业务页直接使用${tag}`,
         message: `Jeecg项目应优先复用框架已有组件，直接使用${tag}可能绕过${capabilities}。`,
         suggestion: `优先使用${preferred}；确属特殊场景时添加带原因的audit-allow-jeecg-component例外声明。`,
       });
     }
   }
-  const lines = context.content.split('\n');
+  const lines = activeContext.content.split('\n');
   lines.forEach((line, index) => {
     if (!/component\s*:\s*['"]Select['"]/.test(line)) return;
     const windowText = lines.slice(Math.max(0, index - 8), index + 18).join('\n');
@@ -221,7 +223,7 @@ function dataScreenRules(context) {
     });
   }
 
-  if (hasChart && observesData && !/getInstanceByDom\s*\(|myChart\?\.setOption|chartInstance\?\.setOption/.test(active)) {
+  if (hasChart && observesData && !/getInstanceByDom\s*\(|(?:\?\.|\.)setOption\s*\(/.test(active)) {
     addFirst(findings, activeContext, /\bwatch(?:Effect)?\s*\(/, {
       ruleId: 'ECHARTS_REINIT_ON_DATA_UPDATE', severity: 'P1', title: '数据变化后可能重复初始化ECharts',
       message: '组件监听了数据变化，但没有发现实例复用保护；再次echarts.init可能产生重复实例、事件和定时器。',
@@ -286,8 +288,7 @@ function tokenRules(context) {
 }
 
 function isBusinessView(file) {
-  if (!file.startsWith('src/views/')) return false;
-  return !/^src\/views\/(?:sys|system|demo|monitor|components)\//.test(file);
+  return file.startsWith('src/views/');
 }
 
 function addGrouped(target, context, regex, meta) {
@@ -329,6 +330,7 @@ function isCommentLine(content, line) {
 
 function stripComments(content) {
   return content
+    .replace(/<!--[\s\S]*?-->/g, (value) => value.replace(/[^\n]/g, ' '))
     .replace(/\/\*[\s\S]*?\*\//g, (value) => value.replace(/[^\n]/g, ' '))
     .replace(/\/\/[^\n]*/g, (value) => ' '.repeat(value.length));
 }
